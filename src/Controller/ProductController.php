@@ -10,12 +10,10 @@
 	use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 	use Symfony\Component\Form\Extension\Core\Type\FileType;
 	use Symfony\Component\HttpFoundation\Request;
-	use Symfony\Component\HttpFoundation\ResponseHeaderBag;
-	use Symfony\Component\Routing\Annotation\Route;
 	use Symfony\Component\HttpFoundation\File\UploadedFile;
 	use Symfony\Component\HttpFoundation\File\Exception\FileException;
+	use Symfony\Component\Routing\Annotation\Route;
 
-	use Symfony\Component\Serializer\Normalizer\DataUriNormalizer;
 
 	class ProductController extends AbstractController
 	{
@@ -66,7 +64,7 @@
 					    $imageName
 				    );
 
-				    $product->setImage($this->getParameter('images_directory')."/".$imageName);
+				    $product->setImage($this->getParameter('view_images_directory').$imageName);
 				    $this->createProduct($product);
 
 				    $this->addFlash(
