@@ -3,7 +3,6 @@
 	namespace App\Controller;
 
 	use App\Entity\Product;
-	use phpDocumentor\Reflection\Types\Resource_;
 	use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 	use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 	use Symfony\Component\Form\Extension\Core\Type\TextareaType;
@@ -11,7 +10,10 @@
 	use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 	use Symfony\Component\Form\Extension\Core\Type\FileType;
 	use Symfony\Component\HttpFoundation\Request;
+	use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 	use Symfony\Component\Routing\Annotation\Route;
+	use Symfony\Component\HttpFoundation\File\UploadedFile;
+	use Symfony\Component\HttpFoundation\File\Exception\FileException;
 
 	use Symfony\Component\Serializer\Normalizer\DataUriNormalizer;
 
@@ -34,7 +36,7 @@
 		public function show($id){
 			$product = $this->getProduct($id);
 
-//			$product->setImage($this->decryptImage($product->getImage()));
+//      return $this->file($file, $product->getTitle(), ResponseHeaderBag::DISPOSITION_INLINE);
 
 			return $this->render('product/show.html.twig', [
 				'product' => $product
@@ -47,23 +49,39 @@
     public function new(Request $request) {
 
 	    $product = new Product();
-    	$form = $this->generateFormProduct($product);
+	    $form = $this->generateFormProduct($product);
 
-    	$form->handleRequest($request);
+	    $form->handleRequest($request);
 
 	    if ($form->isSubmitted() && $form->isValid()) {
-	      $product = $form->getData();
+		    $product = $form->getData();
 
-	      if ($this->validateFormProduct($product)){
-		      $this->createProduct($product);
+		    $image = new UploadedFile($form->getData()->getImage(), "");
+		    if ($this->validateFormProduct($product, $image, $image->guessExtension())){
+			    $imageName = $this->generateUniqueImageName().'.'.$image->guessExtension();
 
-		      $this->addFlash(
-			      'success',
-			      'Produto cadastrado com sucesso!'
-		      );
+			    try {
+				    $image->move(
+					    $this->getParameter('images_directory'),
+					    $imageName
+				    );
 
-		      return $this->redirectToRoute('index_products');
-	      }
+				    $product->setImage($this->getParameter('images_directory')."/".$imageName);
+				    $this->createProduct($product);
+
+				    $this->addFlash(
+					    'success',
+					    'Produto cadastrado com sucesso!'
+				    );
+
+				    return $this->redirectToRoute('index_products');
+			    } catch (FileException $e) {
+				    $this->addFlash(
+					    'success',
+					    'Falha no upload da imagem!'
+				    );
+			    }
+		    }
 	    }
 
 	    return $this->render('product/new.html.twig', [
@@ -71,16 +89,16 @@
 	    ]);
     }
 
-    private function createProduct(Product $product) {
-	    $entityManager = $this->getDoctrine()->getManager();
+		// Private functions
 
-	    $product->setImage($this->encryptImage($product->getImage()));
+		// Create products
+		private function createProduct(Product $product) {
+	    $entityManager = $this->getDoctrine()->getManager();
 
 	    $entityManager->persist($product);
 	    $entityManager->flush();
     }
 
-    // Private functions
 
 		// Functions to get product from DB
 		private function getAllProducts() {
@@ -92,7 +110,7 @@
 		}
 
 
-		// Generate Form Products
+		// Generators
 		private function generateFormProduct(Product $product) {
 
 			$form = $this->createFormBuilder($product)
@@ -125,9 +143,13 @@
 			return $form;
 		}
 
+		private function generateUniqueImageName(){
+    	return md5(uniqid());
+		}
+
 
 		// Functions validations
-		private function validateFormProduct(Product $form) {
+		private function validateFormProduct(Product $form, $img_file, $img_extension) {
     	if ($this->invalidTitle($form->getTitle()) || $this->invalidDescription($form->getDescription()."")){
 		    $this->addFlash(
 			    'danger',
@@ -137,7 +159,7 @@
 		    return false;
 	    }
 
-    	if ($this->invalidImageType($form->getImage())){
+    	if ($this->invalidImageType($img_extension)){
 				$this->addFlash(
 					'warning',
 					'Tipo de imagem invalido!'
@@ -145,7 +167,7 @@
 		    return false;
 	    }
 
-    	if ($this->invalidImageSize($form->getImage())){
+    	if ($this->invalidImageSize($img_file)){
 				$this->addFlash(
 					'warning',
 					'Este arquivo excede o tamanho maximo de 5mb!'
@@ -164,25 +186,13 @@
     	return strlen($description) > 4000;
 		}
 
-		private function invalidImageType($img) {
-			$permitedTypes = array(IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF);
-			$detectedType= exif_imagetype($img);
-			return !in_array($detectedType, $permitedTypes);
+		private function invalidImageType($extension) {
+			$permittedTypes = array("jpg", "jpeg", "png", "gif");
+			return !in_array($extension, $permittedTypes);
 		}
 
 		private function invalidImageSize($img) {
-			return filesize($img) > 5000000;
-		}
-
-
-		private function encryptImage($img) {
-			$normalizer = new DataUriNormalizer();
-			return $normalizer->normalize(new \SplFileObject($img));
-		}
-
-		private function decryptImage($img_code) {
-			$normalizer = new DataUriNormalizer();
-			return $normalizer->denormalize($img_code, 'SplFileObject');
+			return $img->getClientSize() > 5000000;
 		}
 	}
 
