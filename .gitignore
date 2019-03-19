@@ -19,3 +19,6 @@
 
 ## phpStorm
 .idea
+
+## uploads
+/public/uploads/*

@@ -14,11 +14,13 @@
 	use Symfony\Component\HttpFoundation\File\Exception\FileException;
 	use Symfony\Component\Routing\Annotation\Route;
 
-
-	class ProductController extends AbstractController
-	{
+	/**
+	 * Class ProductController
+	 * @package App\Controller
+	 */
+	class ProductController extends AbstractController {
 		/**
-     * @Route("/products", name="index_products")
+     * @Route("/", name="index_products")
      */
     public function index() {
 			$products = $this->getAllProducts();
@@ -29,12 +31,13 @@
     }
 
 		/**
-		 * @Route("/product/{id}", name="show_product"))
+		 * @Route("/show/{id}", name="show_product"))
 		 */
 		public function show($id){
 			$product = $this->getProduct($id);
-
-//      return $this->file($file, $product->getTitle(), ResponseHeaderBag::DISPOSITION_INLINE);
+			if ($product) {
+				$product->setImage($this->getParameter('view_images_directory').$product->getImage());
+			}
 
 			return $this->render('product/show.html.twig', [
 				'product' => $product
@@ -42,10 +45,9 @@
 		}
 
 		/**
-     * @Route("/products/new", name="new_product")
+     * @Route("/new", name="new_product")
      */
     public function new(Request $request) {
-
 	    $product = new Product();
 	    $form = $this->generateFormProduct($product);
 
@@ -64,7 +66,7 @@
 					    $imageName
 				    );
 
-				    $product->setImage($this->getParameter('view_images_directory').$imageName);
+				    $product->setImage($imageName);
 				    $this->createProduct($product);
 
 				    $this->addFlash(
@@ -75,16 +77,73 @@
 				    return $this->redirectToRoute('index_products');
 			    } catch (FileException $e) {
 				    $this->addFlash(
-					    'success',
+					    'danger',
 					    'Falha no upload da imagem!'
 				    );
 			    }
 		    }
 	    }
 
-	    return $this->render('product/new.html.twig', [
+	    return $this->render('product/form.html.twig', [
 	    	'form' => $form->createView()
 	    ]);
+    }
+
+		/**
+		 * @Route("/edit/{id}", name="edit_product")
+		 */
+		public function edit(Request $request, $id){
+			$product = $this->getProduct($id);
+			if($product){
+				$image = $product->getImage();
+				$product->setImage(null);
+
+				$form = $this->generateFormProduct($product);
+				$form->handleRequest($request);
+				if ($form->isSubmitted() && $form->isValid()) {
+					$product = $form->getData();
+
+					$image = new UploadedFile($form->getData()->getImage(), "");
+					if ($this->validateFormProduct($product, $image, $image->guessExtension())) {
+						$imageName = $this->generateUniqueImageName() . '.' . $image->guessExtension();
+
+						try {
+							$image->move(
+								$this->getParameter('images_directory'),
+								$imageName
+							);
+
+							$product->setImage($imageName);
+							$this->updateProduct($product);
+
+							$this->addFlash(
+								'success',
+								'Produto atualizado com sucesso!'
+							);
+							return $this->redirectToRoute('index_products');
+						} catch (FileException $e) {
+							$this->addFlash(
+								'danger',
+								'Falha no upload da imagem!'
+							);
+						}
+					}
+				}
+				return $this->render('product/form.html.twig', [
+					'form' => $form->createView(),
+					'image' => $image
+				]);
+			}
+		}
+
+		/**
+		 * @Route("/delete/{id}", name="delete_product")
+		 */
+    public function delete($id){
+	    $product = $this->getProduct($id);
+	    $product->setDelete_at(new \DateTime());
+    	$this->updateProduct($product);
+	    return $this->redirectToRoute('index_products');
     }
 
 		// Private functions
@@ -97,14 +156,22 @@
 	    $entityManager->flush();
     }
 
+    private function updateProduct($product){
+	    $entityManager = $this->getDoctrine()->getManager();
+
+	    $entityManager->persist($product);
+	    $entityManager->flush();
+    }
+
 
 		// Functions to get product from DB
 		private function getAllProducts() {
-			return $this->getDoctrine()->getRepository(Product::class)->findAll();
+    	$produtos = $this->getDoctrine()->getRepository(Product::class)->findBy(Array('delete_at'=>null));
+			return $produtos;
 		}
 
 		private function getProduct($id){
-    	return $this->getDoctrine()->getRepository(Product::class)->find($id);
+    	return $this->getDoctrine()->getRepository(Product::class)->findOneBy(Array('id'=>$id, 'delete_at'=>null));
 		}
 
 
@@ -134,7 +201,7 @@
 				])
 				->add('save', SubmitType::class, [
 					'label' => 'Criar Produto',
-					'attr' => ['class' => 'btn btn-success']
+					'attr' => ['class' => 'btn btn-success alygn']
 				])
 				->getForm();
 

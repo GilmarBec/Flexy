@@ -36,6 +36,11 @@ class Product
      */
     private $stock;
 
+    /**
+     * @ORM\Column(type="datetime", nullable=true)
+     */
+    private $delete_at;
+
 
     //Getters and Setters
     public function getId(): ?int
@@ -90,4 +95,16 @@ class Product
 
         return $this;
     }
+
+		public function getDelete_at(): ?int
+		{
+			return $this->delete_at;
+		}
+
+		public function setDelete_at($delete_at = null): self
+		{
+			$this->delete_at = $delete_at;
+
+			return $this;
+		}
 }
