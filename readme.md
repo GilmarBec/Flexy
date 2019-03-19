@@ -1,4 +1,4 @@
-**Requisites**
+**Requires**
 ==============
 
 - Composer: 1.8.4
