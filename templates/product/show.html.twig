@@ -1,10 +1,46 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ product.title }}{% endblock %}
+{% block title %}{% if product %} {{ product.title }} {% endif %}{% endblock %}
+
+{% block stylesheets %}
+	<style>
+		.card-title{
+			background-color: #17324f;
+			color: #ffffff;
+			text-align: center;
+		}
+		.card-footer{
+			text-align: center;
+		}
+	</style>
+{% endblock %}
 
 {% block body %}
-	<h1>{{ product.title }}</h1>
-	<p>{{ product.description }}</p>
-	<img src="{{ product.image }}">
-	<h3>{{ product.stock }}</h3>
+	{%  if product %}
+		<div class="border">
+			<div class="row">
+				<div class="col-md-6 col-12 mb-3">
+					<div class="card">
+						<div class="card-title">
+							<h1>{{ product.title }}</h1>
+						</div>
+
+						<div class="card-body">
+							<p>{{ product.description }}</p>
+						</div>
+						<div class="card-footer">
+							<h4>Estoque: {{ product.stock }}</h4>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-6 col-12">
+					<img src="{{ product.image }}" class="border" width="100%">
+				</div>
+			</div>
+		</div>
+
+
+	{% else %}
+		<a href="/"><img src="/404.png" alt="" width="100%"></a>
+	{% endif %}
 {% endblock %}
